@@ -149,6 +149,19 @@ void qcd_zeroGaugeField(qcd_gaugeField *u)
    memset(&(u->D[0][0][0][0].re), 0, 4*3*3*(u->geo)->lV*sizeof(qcd_complex_16));
 }//end qcd_zeroGaugeField
 
+//(Aurora Scapellato) inizialize the gauge field to one
+void qcd_unitGaugeField(qcd_gaugeField *u)
+{
+  qcd_zeroGaugeField(u);
+  qcd_uint_8 i;
+  qcd_uint_2 mu,a;
+  for(i=0; i<u->geo->lV; i++)
+    for(mu=0;mu<4;mu++)
+      for(a=0; a<3; a++)
+	u->D[i][mu][a][a] = (qcd_complex_16){1,0};
+  
+}
+
 void qcd_setVector(qcd_vector *vec, qcd_complex_16 c)
 {
    qcd_uint_8 i;

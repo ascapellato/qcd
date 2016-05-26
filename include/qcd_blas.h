@@ -242,6 +242,7 @@ void qcd_dagger3x3(qcd_complex_16 a[3][3]);
 void qcd_zeroVector(qcd_vector *vec);
 void qcd_zeroPropagator(qcd_propagator *prop);
 void qcd_zeroGaugeField(qcd_gaugeField *u);
+void qcd_unitGaugeField(qcd_gaugeField *u);
 void qcd_setVector(qcd_vector *vec, qcd_complex_16 c);
 void qcd_copyVector(qcd_vector *dest, qcd_vector *src);
 void qcd_copyGaugeField(qcd_gaugeField *dest, qcd_gaugeField *src);

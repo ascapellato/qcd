@@ -23,6 +23,8 @@ TARGETS=b_minus_Dx\
 	twop-hadr\
 	threep-block\
 	twop-block\
+	twop_mg\
+	twop_threep_mg\
 	sourceExp\
         zfac
 
