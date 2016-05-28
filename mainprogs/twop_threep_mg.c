@@ -72,7 +72,6 @@ int main(int argc,char* argv[])
    qcd_complex_16 (**threep_loc_f)[2], (**threep_loc_b)[2];
    qcd_complex_16 (***threep_f)[2], (***threep_b)[2];
    qcd_complex_16 (***prod_f)[4][4], (***prod_b)[4][4];
-   qcd_complex_16 tmp_3x3[3][3];
    /***************/
 
 
@@ -249,10 +248,9 @@ int main(int argc,char* argv[])
    mg_params.mg_basis_vectors[1] = max(28, mg_params.mg_basis_vectors[0]);
    if(myid==0) printf(" Using number of test vector on second level: %d\n",mg_params.mg_basis_vectors[1]);
    for(mu=0;mu<mg_params.number_of_levels; mu++)
-     mg_params.coarse_mu[mu]=mg_params.mu;
-   sscanf(qcd_getParam("<factor_cmu>",params,params_len),"%lf",&(mg_params.coarse_mu[mg_params.number_of_levels-1]));
-   if(myid==0) printf(" Got factor for coarsest mu: %f\n",mg_params.coarse_mu[mg_params.number_of_levels-1]);
-   mg_params.coarse_mu[mg_params.number_of_levels-1] *= mg_params.mu;
+     mg_params.factor_mu[mu]=1.;
+   sscanf(qcd_getParam("<factor_cmu>",params,params_len),"%lf",&(mg_params.factor_mu[mg_params.number_of_levels-1]));
+   if(myid==0) printf(" Got factor for coarsest mu: %f\n",mg_params.factor_mu[mg_params.number_of_levels-1]);
    mg_params.print = 1;
 
    MG4QCD_update_parameters( &mg_params, &mg_status );
@@ -762,25 +760,29 @@ int main(int argc,char* argv[])
              qcd_gamma5Propagator(&(prop_seq[pr][fl]));
 
 	     if((lt_sink>=0) && (lt_sink<geo.lL[0]))
-	       //#pragma omp parallel for private(i, lx, ly, lz, j, x, y, z, tmp, tmp_c, mu, nu, c1, c2 )
-	       for(lx=0; lx<geo.lL[1]; lx++)
-		 for(ly=0; ly<geo.lL[2]; ly++)
-		   for(lz=0; lz<geo.lL[3]; lz++) {
-		     j = qcd_LEXIC(lt_sink,lx,ly,lz,geo.lL);
-		     x=lx+geo.Pos[1]*geo.lL[1]- x_src[1];
-		     y=ly+geo.Pos[2]*geo.lL[2]- x_src[2];
-		     z=lz+geo.Pos[3]*geo.lL[3]- x_src[3];
-		     tmp = (((double) mom[1] * (double) x)/(double) geo.L[1] +
-			    ((double) mom[2] * (double) y)/(double) geo.L[2] +
-			    ((double) mom[3] * (double) z)/(double) geo.L[3])*2.0*M_PI;
-		     tmp_c = (qcd_complex_16) {cos(tmp), -sin(tmp)};
-		     for(mu=0;mu<4;mu++)
-		       for(nu=0;nu<4;nu++)
-			 for(c1=0;c1<3;c1++)
-			   for(c2=0;c2<3;c2++)
-			     prop_seq[pr][fl].D[j][mu][nu][c1][c2] = qcd_CMUL(prop_seq[pr][fl].D[j][mu][nu][c1][c2], tmp_c);
-		   }//end volume i - parallelized
-
+#pragma omp parallel for private(i, lx, ly, lz, j, x, y, z, tmp, tmp_c, mu, nu, c1, c2 )
+               for(i=0; i<geo.lV3; i++){
+		 lx= i % geo.lL[1];
+		 ly = ((i-lx)/geo.lL[1]) % geo.lL[2];
+		 lz = ((i-lx)/geo.lL[1] - ly)/geo.lL[2];
+		 //for(lx=0; lx<geo.lL[1]; lx++)
+		 //for(ly=0; ly<geo.lL[2]; ly++)
+		 //for(lz=0; lz<geo.lL[3]; lz++) {
+		 j = qcd_LEXIC(lt_sink,lx,ly,lz,geo.lL);
+		 x=lx+geo.Pos[1]*geo.lL[1]- x_src[1];
+		 y=ly+geo.Pos[2]*geo.lL[2]- x_src[2];
+		 z=lz+geo.Pos[3]*geo.lL[3]- x_src[3];
+		 tmp = (((double) mom[1] * (double) x)/(double) geo.L[1] +
+			((double) mom[2] * (double) y)/(double) geo.L[2] +
+			((double) mom[3] * (double) z)/(double) geo.L[3])*2.0*M_PI;
+		 tmp_c = (qcd_complex_16) {cos(tmp), -sin(tmp)};
+		 for(mu=0;mu<4;mu++)
+		   for(nu=0;nu<4;nu++)
+		     for(c1=0;c1<3;c1++)
+		       for(c2=0;c2<3;c2++)
+			 prop_seq[pr][fl].D[j][mu][nu][c1][c2] = qcd_CMUL(prop_seq[pr][fl].D[j][mu][nu][c1][c2], tmp_c);
+	       }//end volume i - parallelized
+	     
 	     qcd_conjPropagator(&(prop_seq[pr][fl]));
 
 	     if(myid==0)
@@ -803,8 +805,6 @@ int main(int argc,char* argv[])
 #endif
 
 	   mg_params.mu*=-1.;   
-	   for( i=0; i<mg_params.number_of_levels; i++)
-	     mg_params.coarse_mu[i]*=-1.;
 	   
 	   if(myid==0) printf("Running update\n");
 	   MG4QCD_update_parameters( &mg_params, &mg_status );
@@ -1097,11 +1097,12 @@ int main(int argc,char* argv[])
 		     threep_loc_f[pr][s][fl] = (qcd_complex_16) {0,0};
 		     threep_loc_b[pr][s][fl] = (qcd_complex_16) {0,0};
 
+#pragma omp parallel for private(j, i, mu, nu, ku, c1, c2, c3) 
 		     for(j=0; j<geo.lV3; j++) { //loop over points                                                                                      
 		       i=lt + j*geo.lL[0];                        //points having the same time                                                         
 		       block_f[pr][s][j]=(qcd_complex_16){0,0};
 		       block_b[pr][s][j]=(qcd_complex_16){0,0};
-
+		       
 		       for(mu=0; mu<4; mu++)              //extern spinorial indices - Loop which does the calculation                                  
 			 for(nu=0; nu<4; nu++) {
 			   prod_f[pr][s][j][mu][nu]=(qcd_complex_16){0,0};
@@ -1118,9 +1119,9 @@ int main(int argc,char* argv[])
 								       qcd_CMUL(prop_seq[pr][fl].D[i][mu][ku][c1][c2],
 										qcd_CMUL(u_prod_b.D[i][dir][c1][c3],
 											 prop_shift_b[(fl+1)%2].D[i][nu][ku][c3][c2])));
-
+				   
 				 } //end ku c1 c2 c3  
-
+			   
 			   //accumulating mu and nu in block, multipling by gamma                                                                       
 			   if(qcd_NORM(proj_dir_gamma[proj_type[pr]][dir][mu][nu])>1e-4) {
 			     block_f[pr][s][j]=qcd_CADD(block_f[pr][s][j],
@@ -1131,19 +1132,23 @@ int main(int argc,char* argv[])
 								 proj_dir_gamma[proj_type[pr]][dir][mu][nu]));
 			   }
 			 } //end mu nu                                                                                                                  
-
-		       //accumulating j in threep_loc                                                                                                   
+		     }//end j - parallelized
+		     
+		     for(j=0; j<geo.lV3; j++) { //loop over points                                                                                      
+		       //accumulating j in threep_loc
 		       threep_loc_f[pr][s][fl]=qcd_CADD(threep_loc_f[pr][s][fl], block_f[pr][s][j]);
 		       threep_loc_b[pr][s][fl]=qcd_CADD(threep_loc_b[pr][s][fl], block_b[pr][s][j]);
-
-		     }//end j                                                                                                                           
+		     }		       
 		   }//end fl pr
 
 		 if(s>0) {
 		   qcd_shiftGaugeM( &u_temp, &u_shift_f, dir); //instead of P (l=l+)                                                                    
 		   qcd_copyGaugeField( &u_shift_f, &u_temp);
 		 }
+
+#pragma omp parallel for private(j) 
 		 for(j=0; j<geo.lV; j++) {
+		   qcd_complex_16 tmp_3x3[3][3];
 		   qcd_MUL3x3(tmp_3x3, u_prod_f.D[j][dir], u_shift_f.D[j][dir]); //u_shift_f is a copy of u, old x new                                  
 		   qcd_copy3x3( u_prod_f.D[j][dir], tmp_3x3);
 		 }
@@ -1151,9 +1156,10 @@ int main(int argc,char* argv[])
 		 qcd_shiftGaugeP(&u_temp, &u_shift_b, dir);  //u_shift_b is a copy of u, l= l-                                                          
 		 qcd_copyGaugeField(&u_shift_b, &u_temp);
 
+#pragma omp parallel for private(j) 
 		 for(j=0; j<geo.lV; j++) {
+		   qcd_complex_16 tmp_3x3[3][3];
 		   qcd_MULADJOINT3x3(tmp_3x3,u_prod_b.D[j][dir],u_shift_b.D[j][dir]);
-		   //qcd_MUL3x3(tmp_3x3, u_shift_b.D[j][dir], u_prod_b.D[j][dir]); //new x old                                                            
 		   qcd_copy3x3(u_prod_b.D[j][dir], tmp_3x3 );
 		 }
 

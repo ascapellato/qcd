@@ -17,7 +17,6 @@
 #include <math.h>
 #include <qcd.h>
 #include <mg4qcd.h> 
-#include "projectors2.h"
 #include "projectors_gamma.h"
 
 #define PION
@@ -233,10 +232,9 @@ int main(int argc,char* argv[])
    mg_params.mg_basis_vectors[1] = max(28, mg_params.mg_basis_vectors[0]);
    if(myid==0) printf(" Using number of test vector on second level: %d\n",mg_params.mg_basis_vectors[1]);
    for(mu=0;mu<mg_params.number_of_levels; mu++)
-     mg_params.coarse_mu[mu]=mg_params.mu;
-   sscanf(qcd_getParam("<factor_cmu>",params,params_len),"%lf",&(mg_params.coarse_mu[mg_params.number_of_levels-1]));
-   if(myid==0) printf(" Got factor for coarsest mu: %f\n",mg_params.coarse_mu[mg_params.number_of_levels-1]);
-   mg_params.coarse_mu[mg_params.number_of_levels-1] *= mg_params.mu;
+     mg_params.factor_mu[mu]=1.;
+   sscanf(qcd_getParam("<factor_cmu>",params,params_len),"%lf",&(mg_params.factor_mu[mg_params.number_of_levels-1]));
+   if(myid==0) printf(" Got factor for coarsest mu: %f\n",mg_params.factor_mu[mg_params.number_of_levels-1]);
    mg_params.print = 1;
 
    MG4QCD_update_parameters( &mg_params, &mg_status );
@@ -508,8 +506,6 @@ int main(int argc,char* argv[])
 	     }// end c2
 	
 	   mg_params.mu*=-1.;   
-	   for( i=0; i<mg_params.number_of_levels; i++)
-	     mg_params.coarse_mu[i]*=-1.;
 	   
 	   if(myid==0) printf("Running update\n");
 	   MG4QCD_update_parameters( &mg_params, &mg_status );
