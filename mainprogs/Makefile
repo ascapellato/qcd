@@ -19,15 +19,14 @@ TARGETS=b_minus_Dx\
 	source_block\
 	threep_all_opt\
 	twop_all_opt\
-	twop-nucleons\
-	twop-hadr\
 	threep-block\
-	twop-block\
 	twop_mg\
 	twop_threep_mg\
 	sourceExp\
         zfac
-
+#	twop-block\
+	twop-hadr\
+	twop-nucleons\
 
 LIBDIR = ../lib
 CFLAGS += -I./ -I../include

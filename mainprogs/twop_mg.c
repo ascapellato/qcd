@@ -232,9 +232,9 @@ int main(int argc,char* argv[])
    mg_params.mg_basis_vectors[1] = max(28, mg_params.mg_basis_vectors[0]);
    if(myid==0) printf(" Using number of test vector on second level: %d\n",mg_params.mg_basis_vectors[1]);
    for(mu=0;mu<mg_params.number_of_levels; mu++)
-     mg_params.factor_mu[mu]=1.;
-   sscanf(qcd_getParam("<factor_cmu>",params,params_len),"%lf",&(mg_params.factor_mu[mg_params.number_of_levels-1]));
-   if(myid==0) printf(" Got factor for coarsest mu: %f\n",mg_params.factor_mu[mg_params.number_of_levels-1]);
+     mg_params.mu_factor[mu]=1.;
+   sscanf(qcd_getParam("<factor_cmu>",params,params_len),"%lf",&(mg_params.mu_factor[mg_params.number_of_levels-1]));
+   if(myid==0) printf(" Got factor for coarsest mu: %f\n",mg_params.mu_factor[mg_params.number_of_levels-1]);
    mg_params.print = 1;
 
    MG4QCD_update_parameters( &mg_params, &mg_status );
