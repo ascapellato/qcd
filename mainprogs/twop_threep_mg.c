@@ -68,10 +68,9 @@ int main(int argc,char* argv[])
    qcd_propagator prop_temp, prop_shift_f[2], prop_shift_b[2];
    qcd_propagator prop_ms[2], (*prop_seq)[2] ;
    char (*prop_seq_name)[2][qcd_MAX_STRING_LENGTH], (*source_seq_name)[2][qcd_MAX_STRING_LENGTH];
-   qcd_complex_16 ***block_f, ***block_b ;
+   qcd_complex_16 *block_f, *block_b ;
    qcd_complex_16 (**threep_loc_f)[2], (**threep_loc_b)[2];
    qcd_complex_16 (***threep_f)[2], (***threep_b)[2];
-   qcd_complex_16 (***prod_f)[4][4], (***prod_b)[4][4];
    /***************/
 
 
@@ -454,28 +453,8 @@ int main(int argc,char* argv[])
    }
    qcd_initPropagator(&(prop_temp), &geo);
 
-   block_f=malloc((nprojs)*sizeof(qcd_complex_16 **));
-   block_b=malloc((nprojs)*sizeof(qcd_complex_16 **));
-
-   prod_f=malloc((nprojs)*sizeof(qcd_complex_16 **));
-   prod_b=malloc((nprojs)*sizeof(qcd_complex_16 **));
-
-   for( pr=0; pr<nprojs; pr++){
-     block_f[pr]=malloc((geo.L[1]/2)*sizeof(qcd_complex_16 *));
-     block_b[pr]=malloc((geo.L[1]/2)*sizeof(qcd_complex_16 *));
-
-     prod_f[pr]=malloc((geo.L[1]/2)*sizeof(qcd_complex_16 *));
-     prod_b[pr]=malloc((geo.L[1]/2)*sizeof(qcd_complex_16 *));
-
-     for(s=0;s<geo.L[1]/2;s++) {
-       block_f[pr][s]= malloc(geo.lV3*sizeof(qcd_complex_16));
-       block_b[pr][s]= malloc(geo.lV3*sizeof(qcd_complex_16));
-
-       prod_f[pr][s]=  malloc(geo.lV3*16*sizeof(qcd_complex_16));
-       prod_b[pr][s]=  malloc(geo.lV3*16*sizeof(qcd_complex_16));
-     }
-
-   }//end pr
+   block_f = malloc(geo.lV3*sizeof(qcd_complex_16));
+   block_b = malloc(geo.lV3*sizeof(qcd_complex_16));
 
    threep_loc_f=malloc((nprojs)*sizeof(qcd_complex_16 *));
    for( pr=0; pr<nprojs; pr++)
@@ -1079,8 +1058,9 @@ int main(int argc,char* argv[])
 	 qcd_waitall(&geo);
 	 qcd_communicatePropagatorPM(&(prop[1]));
 	 qcd_waitall(&geo);
-
-	 if(nprojs>0) for(t=t_start; t<=t_stop; t++) {
+	 
+	 //t_stop -> t_sink-x_src[0]
+	 if(nprojs>0) for(t=0; t<=t_sink-x_src[0]; t++) {
 	     if(myid==0) printf("Running t=%d\n",t);
 
 	     lt = ((t+x_src[0])%geo.L[0]) - geo.Pos[0]*geo.lL[0];
@@ -1108,44 +1088,45 @@ int main(int argc,char* argv[])
 #pragma omp parallel for private(j, i, mu, nu, ku, c1, c2, c3) 
 		     for(j=0; j<geo.lV3; j++) { //loop over points                                                                                      
 		       i=lt + j*geo.lL[0];                        //points having the same time                                                         
-		       block_f[pr][s][j]=(qcd_complex_16){0,0};
-		       block_b[pr][s][j]=(qcd_complex_16){0,0};
+		       
+		       block_f[j]=(qcd_complex_16){0,0};
+		       block_b[j]=(qcd_complex_16){0,0};
+
+		       qcd_complex_16 prod_f[4][4], prod_b[4][4];
 		       
 		       for(mu=0; mu<4; mu++)              //extern spinorial indices - Loop which does the calculation                                  
 			 for(nu=0; nu<4; nu++) {
-			   prod_f[pr][s][j][mu][nu]=(qcd_complex_16){0,0};
-			   prod_b[pr][s][j][mu][nu]=(qcd_complex_16){0,0};
+			   prod_f[mu][nu]=(qcd_complex_16){0,0};
+			   prod_b[mu][nu]=(qcd_complex_16){0,0};
 			   for(ku=0; ku<4; ku++)
 			     for(c1=0; c1<3; c1++)
 			       for(c2=0; c2<3; c2++)
 				 for(c3=0; c3<3; c3++) {
-				   prod_f[pr][s][j][mu][nu] = qcd_CADD(prod_f[pr][s][j][mu][nu],
-								       qcd_CMUL(prop_seq[pr][fl].D[i][mu][ku][c1][c2],
-										qcd_CMUL(u_prod_f.D[i][dir][c1][c3],
-											 prop_shift_f[(fl+1)%2].D[i][nu][ku][c3][c2])));
-				   prod_b[pr][s][j][mu][nu] = qcd_CADD(prod_b[pr][s][j][mu][nu],
-								       qcd_CMUL(prop_seq[pr][fl].D[i][mu][ku][c1][c2],
-										qcd_CMUL(u_prod_b.D[i][dir][c1][c3],
-											 prop_shift_b[(fl+1)%2].D[i][nu][ku][c3][c2])));
+				   prod_f[mu][nu] = qcd_CADD(prod_f[mu][nu],
+							     qcd_CMUL(prop_seq[pr][fl].D[i][mu][ku][c1][c2],
+								      qcd_CMUL(u_prod_f.D[i][dir][c1][c3],
+									       prop_shift_f[(fl+1)%2].D[i][nu][ku][c3][c2])));
+				   prod_b[mu][nu] = qcd_CADD(prod_b[mu][nu],
+							     qcd_CMUL(prop_seq[pr][fl].D[i][mu][ku][c1][c2],
+								      qcd_CMUL(u_prod_b.D[i][dir][c1][c3],
+									       prop_shift_b[(fl+1)%2].D[i][nu][ku][c3][c2])));
 				   
 				 } //end ku c1 c2 c3  
 			   
 			   //accumulating mu and nu in block, multipling by gamma                                                                       
 			   if(qcd_NORM(proj_dir_gamma[proj_type[pr]][dir][mu][nu])>1e-4) {
-			     block_f[pr][s][j]=qcd_CADD(block_f[pr][s][j],
-							qcd_CMUL(prod_f[pr][s][j][mu][nu],
-								 proj_dir_gamma[proj_type[pr]][dir][mu][nu]));
-			     block_b[pr][s][j]=qcd_CADD(block_b[pr][s][j],
-							qcd_CMUL(prod_b[pr][s][j][mu][nu],
-								 proj_dir_gamma[proj_type[pr]][dir][mu][nu]));
+			     block_f[j]=qcd_CADD(block_f[j], qcd_CMUL(prod_f[mu][nu],
+								      proj_dir_gamma[proj_type[pr]][dir][mu][nu]));
+			     block_b[j]=qcd_CADD(block_b[j], qcd_CMUL(prod_b[mu][nu],
+								      proj_dir_gamma[proj_type[pr]][dir][mu][nu]));
 			   }
 			 } //end mu nu                                                                                                                  
 		     }//end j - parallelized
 		     
 		     for(j=0; j<geo.lV3; j++) { //loop over points                                                                                      
 		       //accumulating j in threep_loc
-		       threep_loc_f[pr][s][fl]=qcd_CADD(threep_loc_f[pr][s][fl], block_f[pr][s][j]);
-		       threep_loc_b[pr][s][fl]=qcd_CADD(threep_loc_b[pr][s][fl], block_b[pr][s][j]);
+		       threep_loc_f[pr][s][fl]=qcd_CADD(threep_loc_f[pr][s][fl], block_f[j]);
+		       threep_loc_b[pr][s][fl]=qcd_CADD(threep_loc_b[pr][s][fl], block_b[j]);
 		     }		       
 		   }//end fl pr
 
@@ -1235,7 +1216,7 @@ int main(int argc,char* argv[])
 	 }
 #endif
 
-       }//for mom_loop    
+   }//for mom_loop    
    ////////////////////////////////////// CLEAN UP AND EXIT ///////////////////////////////////////////
    if(myid==0) printf("cleaning up...\n");
    for(fl=0;fl<2;fl++){
@@ -1262,23 +1243,9 @@ int main(int argc,char* argv[])
    free(threep_loc_f);
    free(threep_loc_b);
 
-   for( pr=0; pr<nprojs; pr++){
-     for(s=0;s<geo.L[1]/2;s++) {
-       free(block_f[pr][s]);
-       free(block_b[pr][s]);
-       free(prod_f[pr][s]);
-       free(prod_b[pr][s]);
-     }
-     free(block_f[pr]);
-     free(block_b[pr]);
-     free(prod_f[pr]);
-     free(prod_b[pr]);
-   }
    free(block_f);
    free(block_b);
 
-   free(prod_f);
-   free(prod_b);
    for(pr=0; pr<nprojs; pr++)
      for(fl=0;fl<2;fl++)
        qcd_destroyPropagator(&(prop_seq[pr][fl])); //seq-props                                                   
