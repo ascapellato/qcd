@@ -505,8 +505,8 @@ int main(int argc,char* argv[])
 	       
 	     }// end c2
 	
+	   MG4QCD_get_parameters( &mg_params );
 	   mg_params.mu*=-1.;   
-	   
 	   if(myid==0) printf("Running update\n");
 	   MG4QCD_update_parameters( &mg_params, &mg_status );
 	   if(myid==0) printf("Updating time %.2f sec\n", mg_status.time);	  
@@ -658,7 +658,7 @@ int main(int argc,char* argv[])
 	     if(lt>=0 && lt<geo.lL[0]){  //inside the local lattice, otherwise nothing to calculate
 	       for(k=0; k<16; k++)
 		 twop_nucl_loc[k] = (qcd_complex_16) {0,0};
-#pragma omp parallel private(i, lx, ly, lz, x, y, z, tmp, tmp_c, mu, nu)
+#pragma omp parallel private(i, k, lx, ly, lz, x, y, z, tmp, tmp_c, mu, nu)
 	       {
 		 qcd_complex_16 twop_nucl_omp[16];
 		 for(k=0; k<16; k++)

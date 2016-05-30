@@ -146,12 +146,13 @@ int main(int argc,char* argv[])
    }
 
    inline void print_mg_status() {
-     if (!mg_status.success && myid==0) printf("ERROR: not converged\n");
-     
+  
      if(myid==0) printf("Solving time %.2f sec (%.1f %% on coarse grid)\n", mg_status.time,
 			100.*(mg_status.coarse_time/mg_status.time));
      if(myid==0) printf("Total iterations on fine grid %d\n", mg_status.iter_count);
      if(myid==0) printf("Total iterations on coarse grids %d\n", mg_status.coarse_iter_count);
+     if (!mg_status.success && myid==0) printf("ERROR: not converged\n");
+     if (!mg_status.success) exit(0);
    }	 
 
    inline int Cart_rank(MPI_Comm comm, const int coords[], int *rank) {
@@ -697,10 +698,9 @@ int main(int argc,char* argv[])
 #endif
 	   /***** for threep ***/
 
+           MG4QCD_get_parameters( &mg_params );
 	   mg_params.mixed_precision=1;
-           if(myid==0) printf("Running update\n");
            MG4QCD_update_parameters( &mg_params, &mg_status );
-           if(myid==0) printf("Updating time %.2f sec\n", mg_status.time);
 
            for(pr=0; pr<nprojs; pr++) {
              qcd_zeroPropagator(&(prop_seq[pr][fl]));
@@ -800,14 +800,14 @@ int main(int argc,char* argv[])
                  qcd_copyPropagatorVector(&(prop_seq[pr][fl]), &vec_mg, nu, c2);
 	       }
 	   } //end projs
-	   mg_params.mixed_precision=2;
 	   /**********/
 #ifdef THREEP_SKIP_MOM_0
 	   }
 #endif
 
-	   mg_params.mu*=-1.;   
-	   
+           MG4QCD_get_parameters( &mg_params );
+	   mg_params.mixed_precision=2;
+	   mg_params.mu*=-1.;   	
 	   if(myid==0) printf("Running update\n");
 	   MG4QCD_update_parameters( &mg_params, &mg_status );
 	   if(myid==0) printf("Updating time %.2f sec\n", mg_status.time);	  
@@ -973,13 +973,17 @@ int main(int argc,char* argv[])
 	       
 	     }//end lt inside local block condition
 	   }//end t-loop      
+
+	   if(myid==0) printf(" Running Fourier transformation \n");
+	   if(myid==0) printf(" Done t = ");
 	   
 	   for(t=t_start; t<=t_stop; t++){
+	     if(myid==0) printf("%i, ", t);
 	     lt = ((t+x_src[0])%geo.L[0]) - geo.Pos[0]*geo.lL[0];
 	     if(lt>=0 && lt<geo.lL[0]){  //inside the local lattice, otherwise nothing to calculate
 	       for(k=0; k<16; k++)
 		 twop_nucl_loc[k] = (qcd_complex_16) {0,0};
-#pragma omp parallel private(i, lx, ly, lz, x, y, z, tmp, tmp_c, mu, nu)
+#pragma omp parallel private(i, k, lx, ly, lz, x, y, z, tmp, tmp_c, mu, nu)
 	       {
 		 qcd_complex_16 twop_nucl_omp[16];
 		 for(k=0; k<16; k++)
@@ -1012,7 +1016,9 @@ int main(int argc,char* argv[])
 			     32, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 	     }//end lt inside local block condition
 	   }//end t-loop      
-	     
+	   
+	   if(myid==0) printf("\n");
+	   
 	   if(myid==0) printf(" Done %s with momentum %d %d %d. Results...\n", 
 			      ((fl==0)?"proton":"neutron"), mom[1], mom[2], mom[3]);
 	   if(myid==0) 
