@@ -1,5 +1,6 @@
 /* qcd_smearing.c
  *
+ *
  * gauss-smearing of fermion fields
  *
  * Tomasz Korzec 2008

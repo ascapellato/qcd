@@ -1,5 +1,6 @@
 /* qcd_smearing.h
  *
+ *
  * header file for qcd_smearing.c
  *
  * Tomasz Korzec 2009
