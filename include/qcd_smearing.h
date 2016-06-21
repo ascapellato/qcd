@@ -1,6 +1,5 @@
 /* qcd_smearing.h
  *
- *
  * header file for qcd_smearing.c
  *
  * Tomasz Korzec 2009
@@ -40,5 +39,7 @@
 int qcd_gaussIteration3d(qcd_vector *v, qcd_gaugeField *u, qcd_real_8 alpha, qcd_uint_4 t);
 int qcd_gaussIteration3dAll(qcd_vector *v, qcd_gaugeField *u, qcd_real_8 alpha, qcd_uint_2 gaugeCom);
 int qcd_apeSmear3d(qcd_gaugeField *apeu, qcd_gaugeField *u, qcd_real_8 alpha);
-
+double xi0(qcd_real_8 w);
+void Exp(qcd_complex_16 M[][3]);
+void qcd_stoutsmearing(qcd_gaugeField *u_out, qcd_gaugeField *u, qcd_real_8 rho);
 #endif 
